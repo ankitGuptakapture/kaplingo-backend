@@ -1,2 +1,4 @@
-fastapi
-uvicorn 
+python-dotenv
+fastapi[all]
+uvicorn
+pipecat-ai[google,silero, webrtc]
