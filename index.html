@@ -1,15 +1,29 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WebRTC Voice Agent</title>
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
-        #status { font-size: 20px; margin: 20px; }
-        button { padding: 10px 20px; font-size: 16px; }
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 50px;
+        }
+
+        #status {
+            font-size: 20px;
+            margin: 20px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+        }
     </style>
 </head>
+
 <body>
     <h1>WebRTC Voice Agent</h1>
     <p id="status">Disconnected</p>
@@ -55,7 +69,10 @@
 
         const createSmallWebRTCConnection = async (audioTrack) => {
             const config = {
-              iceServers: [],
+
+                iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+
+
             };
             const pc = new RTCPeerConnection(config)
             addPeerConnectionEventListeners(pc)
@@ -67,7 +84,7 @@
             await waitForIceGatheringComplete(pc)
             const offer = pc.localDescription
             const response = await fetch('/api/offer', {
-                body: JSON.stringify({ sdp: offer.sdp, type: offer.type}),
+                body: JSON.stringify({ sdp: offer.sdp, type: offer.type }),
                 headers: { 'Content-Type': 'application/json' },
                 method: 'POST',
             });
@@ -78,8 +95,8 @@
 
         const connect = async () => {
             _onConnecting()
-            const audioStream = await navigator.mediaDevices.getUserMedia({audio: true})
-            peerConnection= await createSmallWebRTCConnection(audioStream.getAudioTracks()[0])
+            const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true })
+            peerConnection = await createSmallWebRTCConnection(audioStream.getAudioTracks()[0])
         }
 
         const addPeerConnectionEventListeners = (pc) => {
@@ -140,4 +157,5 @@
         });
     </script>
 </body>
+
 </html>
