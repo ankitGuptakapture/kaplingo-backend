@@ -13,4 +13,4 @@ pip install --upgrade pip
 pip install -r requirements.txt
 
 # Start the FastAPI server with auto-reload
-uvicorn main:app --reload 
+fastapi dev main.py
