@@ -11,9 +11,19 @@ from fastapi.responses import FileResponse
 from loguru import logger
 from bot import run_bot
 from pipecat.transports.network.webrtc_connection import IceServer, SmallWebRTCConnection
+from fastapi.middleware.cors import CORSMiddleware
 
 pcs_map:Dict[str,SmallWebRTCConnection] = {}
 app = FastAPI()
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins for development
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 ice_servers = [
     IceServer(
         urls="stun:stun.l.google.com:19302",
