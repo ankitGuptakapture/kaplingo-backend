@@ -13,6 +13,7 @@ from bot import run_bot
 from pipecat.transports.network.webrtc_connection import IceServer, SmallWebRTCConnection
 from fastapi.middleware.cors import CORSMiddleware
 
+
 pcs_map:Dict[str,SmallWebRTCConnection] = {}
 app = FastAPI()
 
@@ -48,7 +49,6 @@ async def offer(request: dict, background_tasks: BackgroundTasks):
     else:
         pipecat_connection = SmallWebRTCConnection(ice_servers)
         await pipecat_connection.initialize(sdp=request["sdp"], type=request["type"])
-
         @pipecat_connection.event_handler("closed")
         async def handle_disconnected(webrtc_connection: SmallWebRTCConnection):
             logger.info(f"Discarding peer connection for pc_id: {webrtc_connection.pc_id}")
