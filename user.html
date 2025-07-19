@@ -1,361 +1,397 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>WebSocket Audio Client</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background: #f0f0f0;
-        }
-        .container {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .status {
-            padding: 10px;
-            margin: 10px 0;
-            border-radius: 5px;
-            font-weight: bold;
-        }
-        .connected { background: #d4edda; color: #155724; }
-        .disconnected { background: #f8d7da; color: #721c24; }
-        .audio-controls {
-            margin: 20px 0;
-        }
-        button {
-            background: #007bff;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            margin: 5px;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-        button:hover { background: #0056b3; }
-        button:disabled { background: #6c757d; cursor: not-allowed; }
-        #messages {
-            max-height: 300px;
-            overflow-y: auto;
-            border: 1px solid #ccc;
-            padding: 10px;
-            margin: 10px 0;
-            background: #f8f9fa;
-        }
-        .message {
-            margin: 5px 0;
-            padding: 5px;
-            border-left: 3px solid #007bff;
-            background: white;
-        }
-        .audio-message {
-            border-left-color: #28a745;
-        }
-        .transcription-message {
-            border-left-color: #ffc107;
-        }
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background: #f0f0f0;
+      }
+      .container {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+      .status {
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 5px;
+        font-weight: bold;
+      }
+      .connected {
+        background: #d4edda;
+        color: #155724;
+      }
+      .disconnected {
+        background: #f8d7da;
+        color: #721c24;
+      }
+      .audio-controls {
+        margin: 20px 0;
+      }
+      button {
+        background: #007bff;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        margin: 5px;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #0056b3;
+      }
+      button:disabled {
+        background: #6c757d;
+        cursor: not-allowed;
+      }
+      #messages {
+        max-height: 300px;
+        overflow-y: auto;
+        border: 1px solid #ccc;
+        padding: 10px;
+        margin: 10px 0;
+        background: #f8f9fa;
+      }
+      .message {
+        margin: 5px 0;
+        padding: 5px;
+        border-left: 3px solid #007bff;
+        background: white;
+      }
+      .audio-message {
+        border-left-color: #28a745;
+      }
+      .transcription-message {
+        border-left-color: #ffc107;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div class="container">
-        <h1>WebSocket Audio Stream Client</h1>
-        
-        <div id="status" class="status disconnected">Disconnected</div>
-        
-        <div class="audio-controls">
-            <button onclick="connect()">Connect</button>
-            <button onclick="disconnect()">Disconnect</button>
-            <button onclick="clearMessages()">Clear Messages</button>
-            <button onclick="toggleAudio()" id="audioToggle" disabled>Enable Audio</button>
-            <label>
-                <input type="checkbox" id="autoPlay" checked> Auto-play when speaking
-            </label>
-        </div>
-        
-        <div>
-            <label for="clientId">Client ID:</label>
-            <input type="text" id="clientId" value="test_client" />
-        </div>
-        
-        <div id="messages"></div>
-        
-        <div>
-            <h3>Audio Stats:</h3>
-            <p>Received Frames: <span id="audioFrameCount">0</span></p>
-            <p>Total Audio Data: <span id="totalAudioData">0</span> bytes</p>
-            <p>Speaking Status: <span id="speakingStatus">Not Speaking</span></p>
-        </div>
+      <h1>WebSocket Audio Stream Client</h1>
+
+      <div id="status" class="status disconnected">Disconnected</div>
+
+      <div class="audio-controls">
+        <button onclick="connect()">Connect</button>
+        <button onclick="disconnect()">Disconnect</button>
+        <button onclick="clearMessages()">Clear Messages</button>
+        <button onclick="toggleAudio()" id="audioToggle" disabled>
+          Enable Audio
+        </button>
+        <label>
+          <input type="checkbox" id="autoPlay" checked /> Auto-play when
+          speaking
+        </label>
+      </div>
+
+      <div>
+        <label for="clientId">Client ID:</label>
+        <input type="text" id="clientId" value="test_client" />
+      </div>
+
+      <div id="messages"></div>
+
+      <div>
+        <h3>Audio Stats:</h3>
+        <p>Received Frames: <span id="audioFrameCount">0</span></p>
+        <p>Total Audio Data: <span id="totalAudioData">0</span> bytes</p>
+        <p>Speaking Status: <span id="speakingStatus">Not Speaking</span></p>
+      </div>
     </div>
 
     <script>
-        let ws = null;
-        let audioContext = null;
-        let audioFrameCount = 0;
-        let totalAudioData = 0;
-        let audioEnabled = false;
-        let isSpeaking = false;
-        let audioQueue = [];
-        let isPlayingQueue = false;
+      let ws = null;
+      let audioContext = null;
+      let audioFrameCount = 0;
+      let totalAudioData = 0;
+      let audioEnabled = false;
+      let isSpeaking = false;
+      let audioQueue = [];
+      let isPlayingQueue = false;
 
-        function updateStatus(connected) {
-            const statusEl = document.getElementById('status');
-            if (connected) {
-                statusEl.textContent = 'Connected';
-                statusEl.className = 'status connected';
-            } else {
-                statusEl.textContent = 'Disconnected';
-                statusEl.className = 'status disconnected';
-            }
-            document.getElementById('audioToggle').disabled = !connected;
+      function updateStatus(connected) {
+        const statusEl = document.getElementById("status");
+        if (connected) {
+          statusEl.textContent = "Connected";
+          statusEl.className = "status connected";
+        } else {
+          statusEl.textContent = "Disconnected";
+          statusEl.className = "status disconnected";
+        }
+        document.getElementById("audioToggle").disabled = !connected;
+      }
+
+      function addMessage(message, type = "") {
+        const messagesEl = document.getElementById("messages");
+        const messageEl = document.createElement("div");
+        messageEl.className = `message ${type}`;
+        messageEl.innerHTML = `<small>${new Date().toLocaleTimeString()}</small><br>${message}`;
+        messagesEl.appendChild(messageEl);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+      }
+
+      async function initAudioContext() {
+        if (!audioContext) {
+          audioContext = new (window.AudioContext ||
+            window.webkitAudioContext)();
+          if (audioContext.state === "suspended") {
+            await audioContext.resume();
+          }
+        }
+      }
+
+      async function playAudioBuffer(audioData, sampleRate = 16000) {
+        const autoPlay = document.getElementById("autoPlay").checked;
+
+        // Only play if audio is enabled OR auto-play is on and bot is speaking
+        if (!audioEnabled && !(autoPlay && isSpeaking)) return;
+
+        try {
+          // Convert base64 to ArrayBuffer
+          const binaryData = atob(audioData);
+          const bytes = new Uint8Array(binaryData.length);
+          for (let i = 0; i < binaryData.length; i++) {
+            bytes[i] = binaryData.charCodeAt(i);
+          }
+
+          // Convert PCM data to AudioBuffer
+          const audioBuffer = audioContext.createBuffer(
+            1,
+            bytes.length / 2,
+            sampleRate
+          );
+          const channelData = audioBuffer.getChannelData(0);
+
+          // Convert 16-bit PCM to float
+          for (let i = 0; i < channelData.length; i++) {
+            const sample = bytes[i * 2] | (bytes[i * 2 + 1] << 8);
+            channelData[i] =
+              sample < 0x8000 ? sample / 0x8000 : (sample - 0x10000) / 0x8000;
+          }
+
+          // Add to queue for smooth playback
+          audioQueue.push({ buffer: audioBuffer, sampleRate });
+
+          // Start playing queue if not already playing
+          if (!isPlayingQueue) {
+            playAudioQueue();
+          }
+        } catch (error) {
+          console.error("Error preparing audio:", error);
+          addMessage(
+            `Audio preparation error: ${error.message}`,
+            "error-message"
+          );
+        }
+      }
+
+      async function playAudioQueue() {
+        if (isPlayingQueue || audioQueue.length === 0) return;
+
+        isPlayingQueue = true;
+
+        while (audioQueue.length > 0) {
+          const { buffer } = audioQueue.shift();
+
+          try {
+            // Play the audio
+            const source = audioContext.createBufferSource();
+            source.buffer = buffer;
+            source.connect(audioContext.destination);
+
+            // Wait for this audio chunk to finish
+            await new Promise((resolve) => {
+              source.onended = resolve;
+              source.start();
+            });
+          } catch (error) {
+            console.error("Error playing audio chunk:", error);
+            break;
+          }
         }
 
-        function addMessage(message, type = '') {
-            const messagesEl = document.getElementById('messages');
-            const messageEl = document.createElement('div');
-            messageEl.className = `message ${type}`;
-            messageEl.innerHTML = `<small>${new Date().toLocaleTimeString()}</small><br>${message}`;
-            messagesEl.appendChild(messageEl);
-            messagesEl.scrollTop = messagesEl.scrollHeight;
-        }
+        isPlayingQueue = false;
+      }
 
-        async function initAudioContext() {
-            if (!audioContext) {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                if (audioContext.state === 'suspended') {
-                    await audioContext.resume();
-                }
-            }
-        }
+      function connect() {
+        const clientId =
+          document.getElementById("clientId").value || "test_client";
+        const wsUrl = `wss://b79a15eac0a9.ngrok-free.app/ws/${clientId}`;
 
-        async function playAudioBuffer(audioData, sampleRate = 16000) {
-            const autoPlay = document.getElementById('autoPlay').checked;
-            
-            // Only play if audio is enabled OR auto-play is on and bot is speaking
-            if (!audioEnabled && !(autoPlay && isSpeaking)) return;
+        ws = new WebSocket(wsUrl);
 
-            try {
-                // Convert base64 to ArrayBuffer
-                const binaryData = atob(audioData);
-                const bytes = new Uint8Array(binaryData.length);
-                for (let i = 0; i < binaryData.length; i++) {
-                    bytes[i] = binaryData.charCodeAt(i);
-                }
+        ws.onopen = function () {
+          updateStatus(true);
+          addMessage("Connected to WebSocket");
+          initAudioContext();
+        };
 
-                // Convert PCM data to AudioBuffer
-                const audioBuffer = audioContext.createBuffer(1, bytes.length / 2, sampleRate);
-                const channelData = audioBuffer.getChannelData(0);
-                
-                // Convert 16-bit PCM to float
-                for (let i = 0; i < channelData.length; i++) {
-                    const sample = (bytes[i * 2] | (bytes[i * 2 + 1] << 8));
-                    channelData[i] = sample < 0x8000 ? sample / 0x8000 : (sample - 0x10000) / 0x8000;
-                }
-
-                // Add to queue for smooth playback
-                audioQueue.push({ buffer: audioBuffer, sampleRate });
-                
-                // Start playing queue if not already playing
-                if (!isPlayingQueue) {
-                    playAudioQueue();
-                }
-
-            } catch (error) {
-                console.error('Error preparing audio:', error);
-                addMessage(`Audio preparation error: ${error.message}`, 'error-message');
-            }
-        }
-
-        async function playAudioQueue() {
-            if (isPlayingQueue || audioQueue.length === 0) return;
-            
-            isPlayingQueue = true;
-            
-            while (audioQueue.length > 0) {
-                const { buffer } = audioQueue.shift();
-                
-                try {
-                    // Play the audio
-                    const source = audioContext.createBufferSource();
-                    source.buffer = buffer;
-                    source.connect(audioContext.destination);
-                    
-                    // Wait for this audio chunk to finish
-                    await new Promise((resolve) => {
-                        source.onended = resolve;
-                        source.start();
-                    });
-                    
-                } catch (error) {
-                    console.error('Error playing audio chunk:', error);
-                    break;
-                }
-            }
-            
-            isPlayingQueue = false;
-        }
-
-        function connect() {
-            const clientId = document.getElementById('clientId').value || 'test_client';
-            const wsUrl = `ws://localhost:8000/ws/${clientId}`;
-            
-            ws = new WebSocket(wsUrl);
-            
-            ws.onopen = function() {
-                updateStatus(true);
-                addMessage('Connected to WebSocket');
-                initAudioContext();
-            };
-            
-            ws.onmessage = async function(event) {
-                if (event.data instanceof Blob) {
-                    // Binary audio data
-                    const arrayBuffer = await event.data.arrayBuffer();
-                    audioFrameCount++;
-                    totalAudioData += arrayBuffer.byteLength;
-                    updateAudioStats();
-                    
-                    addMessage(`Received binary audio: ${arrayBuffer.byteLength} bytes`, 'audio-message');
-                    
-                    // Convert to base64 for playback (if needed)
-                    const autoPlay = document.getElementById('autoPlay').checked;
-                    if (audioEnabled || (autoPlay && isSpeaking)) {
-                        if (!audioContext) {
-                            await initAudioContext();
-                        }
-                        const uint8Array = new Uint8Array(arrayBuffer);
-                        let binaryString = '';
-                        for (let i = 0; i < uint8Array.length; i++) {
-                            binaryString += String.fromCharCode(uint8Array[i]);
-                        }
-                        const base64Data = btoa(binaryString);
-                        await playAudioBuffer(base64Data);
-                    }
-                    
-                } else {
-                    // Text/JSON data
-                    try {
-                        const data = JSON.parse(event.data);
-                        
-                        if (data.type === 'audio') {
-                            audioFrameCount++;
-                            const audioDataLength = atob(data.data).length;
-                            totalAudioData += audioDataLength;
-                            updateAudioStats();
-                            
-                            addMessage(`Received audio: ${audioDataLength} bytes, ${data.sample_rate}Hz`, 'audio-message');
-                            
-                            // Auto-initialize audio context on first audio
-                            if (!audioContext) {
-                                await initAudioContext();
-                            }
-                            
-                            await playAudioBuffer(data.data, data.sample_rate);
-                            
-                        } else if (data.type === 'transcription') {
-                            addMessage(`Transcription: "${data.text}"`, 'transcription-message');
-                            
-                        } else if (data.type === 'speaking_started' || data.type === 'tts_started') {
-                            isSpeaking = true;
-                            document.getElementById('speakingStatus').textContent = 'Speaking';
-                            document.getElementById('speakingStatus').style.color = '#28a745';
-                            addMessage('🗣️ Bot started speaking', 'status-message');
-                            
-                            // Auto-initialize audio context when bot starts speaking
-                            if (!audioContext) {
-                                await initAudioContext();
-                            }
-                            
-                        } else if (data.type === 'speaking_stopped' || data.type === 'tts_stopped') {
-                            isSpeaking = false;
-                            document.getElementById('speakingStatus').textContent = 'Not Speaking';
-                            document.getElementById('speakingStatus').style.color = '#6c757d';
-                            addMessage('🔇 Bot stopped speaking', 'status-message');
-                            
-                            // Clear remaining audio queue when speaking stops
-                            audioQueue = [];
-                            
-                        } else if (data.type === 'webrtc_connected') {
-                            addMessage('WebRTC client connected', 'status-message');
-                            
-                        } else if (data.type === 'webrtc_disconnected') {
-                            addMessage('WebRTC client disconnected', 'status-message');
-                            
-                        } else {
-                            addMessage(`Message: ${JSON.stringify(data)}`);
-                        }
-                    } catch (error) {
-                        addMessage(`Text message: ${event.data}`);
-                    }
-                }
-            };
-            
-            ws.onerror = function(error) {
-                addMessage(`WebSocket error: ${error}`);
-            };
-            
-            ws.onclose = function() {
-                updateStatus(false);
-                addMessage('WebSocket connection closed');
-                ws = null;
-            };
-        }
-
-        function disconnect() {
-            if (ws) {
-                ws.close();
-            }
-        }
-
-        function clearMessages() {
-            document.getElementById('messages').innerHTML = '';
-            audioFrameCount = 0;
-            totalAudioData = 0;
+        ws.onmessage = async function (event) {
+          if (event.data instanceof Blob) {
+            // Binary audio data
+            const arrayBuffer = await event.data.arrayBuffer();
+            audioFrameCount++;
+            totalAudioData += arrayBuffer.byteLength;
             updateAudioStats();
-            
-            // Clear audio queue
-            audioQueue = [];
-            isPlayingQueue = false;
-        }
 
-        async function toggleAudio() {
-            const button = document.getElementById('audioToggle');
-            
-            if (!audioEnabled) {
-                try {
-                    await initAudioContext();
-                    audioEnabled = true;
-                    button.textContent = 'Disable Audio';
-                    button.style.backgroundColor = '#dc3545';
-                    addMessage('🔊 Manual audio playback enabled');
-                } catch (error) {
-                    addMessage(`Failed to enable audio: ${error.message}`);
-                }
-            } else {
-                audioEnabled = false;
-                button.textContent = 'Enable Audio';
-                button.style.backgroundColor = '#007bff';
-                addMessage('🔇 Manual audio playback disabled');
-                
-                // Clear audio queue when disabling
-                audioQueue = [];
-                isPlayingQueue = false;
+            addMessage(
+              `Received binary audio: ${arrayBuffer.byteLength} bytes`,
+              "audio-message"
+            );
+
+            // Convert to base64 for playback (if needed)
+            const autoPlay = document.getElementById("autoPlay").checked;
+            if (audioEnabled || (autoPlay && isSpeaking)) {
+              if (!audioContext) {
+                await initAudioContext();
+              }
+              const uint8Array = new Uint8Array(arrayBuffer);
+              let binaryString = "";
+              for (let i = 0; i < uint8Array.length; i++) {
+                binaryString += String.fromCharCode(uint8Array[i]);
+              }
+              const base64Data = btoa(binaryString);
+              await playAudioBuffer(base64Data);
             }
-        }
+          } else {
+            // Text/JSON data
+            try {
+              const data = JSON.parse(event.data);
 
-        function updateAudioStats() {
-            document.getElementById('audioFrameCount').textContent = audioFrameCount;
-            document.getElementById('totalAudioData').textContent = totalAudioData.toLocaleString();
-        }
+              if (data.type === "audio") {
+                audioFrameCount++;
+                const audioDataLength = atob(data.data).length;
+                totalAudioData += audioDataLength;
+                updateAudioStats();
 
-        // Initialize
-        updateStatus(false);
+                addMessage(
+                  `Received audio: ${audioDataLength} bytes, ${data.sample_rate}Hz`,
+                  "audio-message"
+                );
+
+                // Auto-initialize audio context on first audio
+                if (!audioContext) {
+                  await initAudioContext();
+                }
+
+                await playAudioBuffer(data.data, data.sample_rate);
+              } else if (data.type === "transcription") {
+                addMessage(
+                  `Transcription: "${data.text}"`,
+                  "transcription-message"
+                );
+              } else if (
+                data.type === "speaking_started" ||
+                data.type === "tts_started"
+              ) {
+                isSpeaking = true;
+                document.getElementById("speakingStatus").textContent =
+                  "Speaking";
+                document.getElementById("speakingStatus").style.color =
+                  "#28a745";
+                addMessage("🗣️ Bot started speaking", "status-message");
+
+                // Auto-initialize audio context when bot starts speaking
+                if (!audioContext) {
+                  await initAudioContext();
+                }
+              } else if (
+                data.type === "speaking_stopped" ||
+                data.type === "tts_stopped"
+              ) {
+                isSpeaking = false;
+                document.getElementById("speakingStatus").textContent =
+                  "Not Speaking";
+                document.getElementById("speakingStatus").style.color =
+                  "#6c757d";
+                addMessage("🔇 Bot stopped speaking", "status-message");
+
+                // Clear remaining audio queue when speaking stops
+                audioQueue = [];
+              } else if (data.type === "webrtc_connected") {
+                addMessage("WebRTC client connected", "status-message");
+              } else if (data.type === "webrtc_disconnected") {
+                addMessage("WebRTC client disconnected", "status-message");
+              } else {
+                addMessage(`Message: ${JSON.stringify(data)}`);
+              }
+            } catch (error) {
+              addMessage(`Text message: ${event.data}`);
+            }
+          }
+        };
+
+        ws.onerror = function (error) {
+          addMessage(`WebSocket error: ${error}`);
+        };
+
+        ws.onclose = function () {
+          updateStatus(false);
+          addMessage("WebSocket connection closed");
+          ws = null;
+        };
+      }
+
+      function disconnect() {
+        if (ws) {
+          ws.close();
+        }
+      }
+
+      function clearMessages() {
+        document.getElementById("messages").innerHTML = "";
+        audioFrameCount = 0;
+        totalAudioData = 0;
         updateAudioStats();
+
+        // Clear audio queue
+        audioQueue = [];
+        isPlayingQueue = false;
+      }
+
+      async function toggleAudio() {
+        const button = document.getElementById("audioToggle");
+
+        if (!audioEnabled) {
+          try {
+            await initAudioContext();
+            audioEnabled = true;
+            button.textContent = "Disable Audio";
+            button.style.backgroundColor = "#dc3545";
+            addMessage("🔊 Manual audio playback enabled");
+          } catch (error) {
+            addMessage(`Failed to enable audio: ${error.message}`);
+          }
+        } else {
+          audioEnabled = false;
+          button.textContent = "Enable Audio";
+          button.style.backgroundColor = "#007bff";
+          addMessage("🔇 Manual audio playback disabled");
+
+          // Clear audio queue when disabling
+          audioQueue = [];
+          isPlayingQueue = false;
+        }
+      }
+
+      function updateAudioStats() {
+        document.getElementById("audioFrameCount").textContent =
+          audioFrameCount;
+        document.getElementById("totalAudioData").textContent =
+          totalAudioData.toLocaleString();
+      }
+
+      // Initialize
+      updateStatus(false);
+      updateAudioStats();
     </script>
-</body>
+  </body>
 </html>
