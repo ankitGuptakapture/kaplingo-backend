@@ -71,6 +71,18 @@
       .transcription-message {
         border-left-color: #ffc107;
       }
+      .sent-message {
+        border-left-color: #17a2b8;
+        background: #e7f3ff;
+      }
+      .error-message {
+        border-left-color: #dc3545;
+        background: #ffe6e6;
+      }
+      .status-message {
+        border-left-color: #6f42c1;
+        background: #f3e5f5;
+      }
     </style>
   </head>
   <body>
@@ -82,6 +94,9 @@
       <div class="audio-controls">
         <button onclick="connect()">Connect</button>
         <button onclick="disconnect()">Disconnect</button>
+        <button onclick="sendTestMessage()" id="testButton" disabled>
+          Send Test Message
+        </button>
         <button onclick="clearMessages()">Clear Messages</button>
         <button onclick="toggleAudio()" id="audioToggle" disabled>
           Enable Audio
@@ -127,6 +142,20 @@
           statusEl.className = "status disconnected";
         }
         document.getElementById("audioToggle").disabled = !connected;
+        document.getElementById("testButton").disabled = !connected;
+      }
+
+      function sendTestMessage() {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          const testMessage = `Test message from client at ${new Date().toLocaleTimeString()}`;
+          ws.send(testMessage);
+          addMessage(`Sent: ${testMessage}`, "sent-message");
+        } else {
+          addMessage(
+            "Cannot send message - WebSocket not connected",
+            "error-message"
+          );
+        }
       }
 
       function addMessage(message, type = "") {
@@ -224,7 +253,13 @@
       function connect() {
         const clientId =
           document.getElementById("clientId").value || "test_client";
-        const wsUrl = `wss://kaplingo-backend.onrender.com/ws/${clientId}`;
+
+        // Dynamically determine WebSocket URL based on current location
+        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        const host = window.location.host;
+        const wsUrl = `${protocol}//${host}/ws/${clientId}`;
+
+        console.log("Connecting to:", wsUrl);
 
         ws = new WebSocket(wsUrl);
 

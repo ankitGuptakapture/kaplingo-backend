@@ -36,14 +36,59 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
     
     await ws_manager.connect(client_id, websocket)
     
+    # Send welcome message to confirm connection is working
+    welcome_message = {
+        "type": "connection_test",
+        "message": f"WebSocket connected successfully for client: {client_id}",
+        "timestamp": int(asyncio.get_event_loop().time() * 1000),
+        "server": "render" if "render.com" in str(websocket.url) else "local"
+    }
+    await ws_manager.send_json(client_id, welcome_message)
+    
+    # Send periodic test messages to verify data flow
+    async def send_test_messages():
+        counter = 0
+        while ws_manager.is_connected(client_id):
+            try:
+                await asyncio.sleep(5)  # Send test message every 5 seconds
+                if ws_manager.is_connected(client_id):
+                    counter += 1
+                    test_message = {
+                        "type": "test_message",
+                        "message": f"Test message #{counter} from server",
+                        "timestamp": int(asyncio.get_event_loop().time() * 1000),
+                        "client_id": client_id
+                    }
+                    await ws_manager.send_json(client_id, test_message)
+                    print(f"[WS] Sent test message #{counter} to {client_id}")
+            except Exception as e:
+                print(f"[WS] Error sending test message to {client_id}: {e}")
+                break
+    
+    # Start test message task
+    test_task = asyncio.create_task(send_test_messages())
+    
     try:
         while True:
             data = await websocket.receive_text()
+            print(f"[WS] Got from {client_id}: {data}")
+            
+            # Echo back received messages
+            echo_message = {
+                "type": "echo",
+                "original_message": data,
+                "timestamp": int(asyncio.get_event_loop().time() * 1000),
+                "from_client": client_id
+            }
+            await ws_manager.send_json(client_id, echo_message)
+            
     except WebSocketDisconnect:
         print(f"Client {client_id} disconnected")
+        test_task.cancel()
         ws_manager.disconnect(client_id)
     except Exception as e:
         print(f"Error with client {client_id}: {e}")
+        test_task.cancel()
         ws_manager.disconnect(client_id)
 
 
@@ -88,4 +133,3 @@ async def offer(request: dict, background_tasks: BackgroundTasks):
     pcs_map[answer["pc_id"]] = pipecat_connection
 
     return answer
-
