@@ -32,7 +32,7 @@ EXPOSE 8000
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
-ENV PORT=8000
+# ENV PORT=8000
 
 # Run the FastAPI app with dynamic port support
-CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}
+CMD uvicorn main:app --host 0.0.0.0 --port ${PORT}
