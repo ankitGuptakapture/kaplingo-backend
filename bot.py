@@ -28,7 +28,10 @@ You are a simple translator bot. Your only function is to translate between Engl
 4. Only provide direct translations
 5. Keep translations accurate and natural
 6. Don't include special characters that might break text streaming
+7. Use simple language and avoid complex sentences
+8. Speak in a natural and conversational tone
 Simply translate what the user said - nothing more, nothing less.
+
 """
 
 class TranslatorAudioWebSocketStreamer(FrameProcessor):
@@ -43,9 +46,9 @@ class TranslatorAudioWebSocketStreamer(FrameProcessor):
         self.last_audio_time = 0
         self.tts_active = False
         self.audio_buffer = []
-        self.fade_out_frames = 5  # Number of frames to fade out at the end
+        self.fade_out_frames = 3  # Number of frames to fade out at the end
         self.consecutive_silent_frames = 0
-        self.max_silent_frames = 10  # Allow some silent frames during speech
+        self.max_silent_frames = 100  # Increased to be less aggressive with silent frame filtering
         
     def _calculate_volume(self, audio_data: bytes) -> float:
         """Calculate RMS volume of audio data"""
@@ -69,8 +72,8 @@ class TranslatorAudioWebSocketStreamer(FrameProcessor):
             if len(audio_array) == 0:
                 return audio_data
             
-            # Apply fade out to last 25% of the audio
-            fade_length = len(audio_array) // 4
+            # Apply fade out to last 15% of the audio
+            fade_length = int(len(audio_array) * 0.15)
             if fade_length > 0:
                 fade_curve = np.linspace(1.0, 0.0, fade_length)
                 audio_array[-fade_length:] = (audio_array[-fade_length:] * fade_curve).astype(np.int16)
@@ -167,17 +170,18 @@ class TranslatorAudioWebSocketStreamer(FrameProcessor):
                 "timestamp": int(time.time() * 1000)
             })
         
-        # Capture bot's text responses for logging (this will be translations)
+        # Capture bot's text responses (LLM translations) and send via WebSocket for browser TTS
         elif isinstance(frame, TranscriptionFrame) and direction == FrameDirection.DOWNSTREAM:
             try:
-                translation_text_data = {
-                    "type": "translation_text",
+                # Send the clean LLM translation text to WebSocket clients for browser TTS
+                translation_message = {
+                    "type": "translation",
                     "text": frame.text,
                     "timestamp": int(time.time() * 1000),
-                    "bot_id": "translator"
+                    "from": "bot_translation"
                 }
-                await ws_manager.broadcast_json(translation_text_data)
-                logger.info(f"Translation generated: {frame.text}")
+                await ws_manager.broadcast_json(translation_message)
+                logger.info(f"🌐 Sent LLM translation to WebSocket: {frame.text}")
             except Exception as e:
                 logger.error(f"Error sending translation text to WebSocket: {e}")
 
