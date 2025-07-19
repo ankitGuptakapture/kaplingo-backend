@@ -6,15 +6,15 @@ from contextlib import asynccontextmanager
 from typing import Dict
 import uvicorn
 from dotenv import load_dotenv
-from fastapi import BackgroundTasks, FastAPI
+from fastapi import BackgroundTasks, FastAPI,WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from loguru import logger
 from bot import run_bot
 from pipecat.transports.network.webrtc_connection import IceServer, SmallWebRTCConnection
 from fastapi.middleware.cors import CORSMiddleware
+from web_socket import ws_manager
 
 
-pcs_map:Dict[str,SmallWebRTCConnection] = {}
 app = FastAPI()
 
 # Add CORS middleware
@@ -25,6 +25,29 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+
+pcs_map:Dict[str,SmallWebRTCConnection] = {}
+
+@app.websocket("/ws/{client_id}")
+async def websocket_endpoint(websocket: WebSocket, client_id: str):
+    print(f"Attempting to connect: {client_id}")
+    
+    await ws_manager.connect(client_id, websocket)
+    
+    try:
+        while True:
+            data = await websocket.receive_text()
+    except WebSocketDisconnect:
+        print(f"Client {client_id} disconnected")
+        ws_manager.disconnect(client_id)
+    except Exception as e:
+        print(f"Error with client {client_id}: {e}")
+        ws_manager.disconnect(client_id)
+
+
+
 ice_servers = [
     IceServer(
         urls="stun:stun.l.google.com:19302",
@@ -35,6 +58,10 @@ ice_servers = [
 @app.get("/")
 def read_root():
     return FileResponse("index.html")
+
+@app.get("/user")
+def read_user():
+    return FileResponse("user.html")
 
 
 
