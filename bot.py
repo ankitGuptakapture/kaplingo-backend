@@ -46,7 +46,7 @@ class TranslatorAudioWebSocketStreamer(FrameProcessor):
         self.last_audio_time = 0
         self.tts_active = False
         self.audio_buffer = []
-        self.fade_out_frames = 3  # Number of frames to fade out at the end
+        self.fade_out_frames = 5  # Number of frames to fade out at the end
         self.consecutive_silent_frames = 0
         self.max_silent_frames = 100  # Increased to be less aggressive with silent frame filtering
         
