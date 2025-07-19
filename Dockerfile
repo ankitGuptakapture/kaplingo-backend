@@ -1,10 +1,7 @@
-# Use official Python image
 FROM python:3.11-slim
 
-# Set work directory
 WORKDIR /app
 
-# Install system dependencies for audio/video and WebRTC
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     ffmpeg \
@@ -14,19 +11,19 @@ RUN apt-get update && \
     libasound2 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
 COPY requirements.txt ./
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Copy app code
 COPY . .
 
-# Expose port
+RUN useradd --create-home --shell /bin/bash app && \
+    chown -R app:app /app
+USER app
+
 EXPOSE 8000
 
-# Set environment variables (optional, for dotenv)
 ENV PYTHONUNBUFFERED=1
 
-# Run the FastAPI app with Uvicorn (remove --reload for production)
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# ✅✅ Correct: use sh -c so ${PORT} expands
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT}"]
