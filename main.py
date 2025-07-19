@@ -39,6 +39,10 @@ ice_servers = [
 def read_root():
     return FileResponse("index.html")
 
+@app.get("/bidirectional.html")
+def bidirectional_page():
+    return FileResponse("bidirectional.html")
+
 
 
 # Legacy single-user translation endpoint
