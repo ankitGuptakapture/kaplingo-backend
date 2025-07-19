@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bidirectional Real-Time Translation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(45deg, #4CAF50, #2196F3);
+            color: white;
+            text-align: center;
+            padding: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2px;
+            background: #f0f0f0;
+        }
+
+        .user-panel {
+            background: white;
+            padding: 30px;
+            position: relative;
+        }
+
+        .user-panel.active {
+            background: linear-gradient(135deg, #e8f5e8, #f0f8ff);
+            border-left: 5px solid #4CAF50;
+        }
+
+        .user-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .user-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #FF9800, #FF5722);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            margin-right: 15px;
+        }
+
+        .user-info h3 {
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .language-select {
+            margin-bottom: 20px;
+        }
+
+        .language-select select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 16px;
+            background: white;
+        }
+
+        .status-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-left: 4px solid #6c757d;
+        }
+
+        .status-card.waiting {
+            border-left-color: #ffc107;
+            background: #fff8e1;
+        }
+
+        .status-card.connected {
+            border-left-color: #28a745;
+            background: #e8f5e8;
+        }
+
+        .status-card.error {
+            border-left-color: #dc3545;
+            background: #ffe6e6;
+        }
+
+        .status-text {
+            font-weight: 500;
+            margin-bottom: 5px;
+        }
+
+        .status-details {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .conversation {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 15px;
+            background: #fafafa;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 8px;
+            animation: slideIn 0.3s ease;
+        }
+
+        .message.sent {
+            background: #e3f2fd;
+            border-left: 3px solid #2196F3;
+        }
+
+        .message.received {
+            background: #e8f5e8;
+            border-left: 3px solid #4CAF50;
+        }
+
+        .message.translation {
+            background: #fff3e0;
+            border-left: 3px solid #ff9800;
+        }
+
+        .message-header {
+            font-size: 0.8em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .message-text {
+            font-size: 1em;
+            line-height: 1.4;
+        }
+
+        .audio-visualizer {
+            height: 60px;
+            background: #f0f0f0;
+            border-radius: 10px;
+            margin: 10px 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .audio-visualizer.active {
+            background: linear-gradient(90deg, #4CAF50, #81C784);
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .stats-panel {
+            grid-column: 1 / -1;
+            background: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            border-top: 1px solid #dee2e6;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            flex-wrap: wrap;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .connection-indicator {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #dc3545;
+        }
+
+        .connection-indicator.connected {
+            background: #28a745;
+            animation: blink 2s ease-in-out infinite;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 2em;
+            }
+
+            .user-panel {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔄 Bidirectional Translation</h1>
+            <p>Real-time voice translation between any two languages</p>
+        </div>
+
+        <div class="main-content">
+            <!-- User 1 Panel -->
+            <div class="user-panel" id="user1Panel">
+                <div class="connection-indicator" id="user1Indicator"></div>
+                <div class="user-header">
+                    <div class="user-avatar">👤</div>
+                    <div class="user-info">
+                        <h3>You</h3>
+                        <span id="user1Id">Not connected</span>
+                    </div>
+                </div>
+
+                <div class="language-select">
+                    <select id="user1Language">
+                        <option value="en">🇺🇸 English</option>
+                        <option value="hi">🇮🇳 Hindi</option>
+                        <option value="es">🇪🇸 Spanish</option>
+                        <option value="fr">🇫🇷 French</option>
+                        <option value="de">🇩🇪 German</option>
+                        <option value="zh">🇨🇳 Chinese</option>
+                        <option value="ja">🇯🇵 Japanese</option>
+                        <option value="ar">🇸🇦 Arabic</option>
+                    </select>
+                </div>
+
+                <div class="status-card" id="user1Status">
+                    <div class="status-text">Select your language and join</div>
+                    <div class="status-details">Choose your preferred language to start</div>
+                </div>
+
+                <div class="controls">
+                    <button class="btn btn-primary" id="joinBtn" onclick="joinRoom()">Join Room</button>
+                    <button class="btn btn-secondary" id="connectBtn" onclick="startTranslation()" disabled>Connect</button>
+                    <button class="btn btn-danger" id="leaveBtn" onclick="leaveRoom()" disabled>Leave</button>
+                </div>
+
+                <div class="audio-visualizer" id="user1Audio"></div>
+
+                <div class="conversation" id="user1Conversation">
+                    <div class="message">
+                        <div class="message-header">System</div>
+                        <div class="message-text">Welcome! Select your language and join a room to start translating.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- User 2 Panel (Partner) -->
+            <div class="user-panel" id="user2Panel">
+                <div class="connection-indicator" id="user2Indicator"></div>
+                <div class="user-header">
+                    <div class="user-avatar">🤝</div>
+                    <div class="user-info">
+                        <h3>Translation Partner</h3>
+                        <span id="user2Id">Waiting for partner...</span>
+                    </div>
+                </div>
+
+                <div class="status-card waiting" id="user2Status">
+                    <div class="status-text">No partner connected</div>
+                    <div class="status-details">Waiting for someone to join...</div>
+                </div>
+
+                <div class="audio-visualizer" id="user2Audio"></div>
+
+                <div class="conversation" id="user2Conversation">
+                    <div class="message">
+                        <div class="message-header">System</div>
+                        <div class="message-text">Your partner's messages and translations will appear here.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="stats-panel">
+            <div class="stats">
+                <div class="stat-item">
+                    <div class="stat-value" id="activeRooms">0</div>
+                    <div class="stat-label">Active Rooms</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="totalUsers">0</div>
+                    <div class="stat-label">Total Users</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="translations">0</div>
+                    <div class="stat-label">Translations</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        let currentUser = null;
+        let websocket = null;
+        let peerConnection = null;
+        let localAudioContext = null;
+        let remoteAudioContext = null;
+        let translationCount = 0;
+
+        // WebRTC configuration
+        const configuration = {
+            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+        };
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            updateStats();
+            setInterval(updateStats, 5000); // Update stats every 5 seconds
+        });
+
+        async function joinRoom() {
+            const language = document.getElementById('user1Language').value;
+            const joinBtn = document.getElementById('joinBtn');
+            
+            try {
+                joinBtn.disabled = true;
+                joinBtn.textContent = 'Joining...';
+                
+                updateStatus('user1Status', 'waiting', 'Joining room...', 'Looking for translation partners');
+
+                const response = await fetch('/api/join-room', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ language: language })
+                });
+
+                const data = await response.json();
+                currentUser = data;
+
+                if (data.status === 'matched') {
+                    updateStatus('user1Status', 'connected', 'Partner found!', 
+                        `Ready for ${data.language} ↔ ${data.partner_language} translation`);
+                    
+                    updatePartnerInfo(data.partner_id, data.partner_language);
+                    
+                    document.getElementById('connectBtn').disabled = false;
+                    document.getElementById('leaveBtn').disabled = false;
+                } else {
+                    updateStatus('user1Status', 'waiting', 'Waiting for partner...', 
+                        'Looking for someone who speaks a different language');
+                }
+
+                // Connect WebSocket
+                await connectWebSocket(data.connection_id);
+                
+                addMessage('user1Conversation', 'system', `Joined as ${data.user_id} (${language})`);
+                document.getElementById('user1Id').textContent = data.user_id;
+
+            } catch (error) {
+                console.error('Error joining room:', error);
+                updateStatus('user1Status', 'error', 'Failed to join', error.message);
+                joinBtn.disabled = false;
+                joinBtn.textContent = 'Join Room';
+            }
+        }
+
+        async function connectWebSocket(connectionId) {
+            const wsUrl = `ws://localhost:8000/ws/${connectionId}`;
+            websocket = new WebSocket(wsUrl);
+
+            websocket.onopen = function() {
+                console.log('WebSocket connected');
+                document.getElementById('user1Indicator').classList.add('connected');
+            };
+
+            websocket.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                handleWebSocketMessage(data);
+            };
+
+            websocket.onclose = function() {
+                console.log('WebSocket disconnected');
+                document.getElementById('user1Indicator').classList.remove('connected');
+            };
+
+            websocket.onerror = function(error) {
+                console.error('WebSocket error:', error);
+            };
+        }
+
+        function handleWebSocketMessage(data) {
+            console.log('WebSocket message:', data);
+
+            switch (data.type) {
+                case 'partner_speech':
+                    addMessage('user2Conversation', 'received', data.original_text, 
+                        `Partner (${data.original_language})`);
+                    break;
+
+                case 'translation_text':
+                    addMessage('user1Conversation', 'translation', data.translated_text, 
+                        'Translation');
+                    translationCount++;
+                    updateTranslationCount();
+                    break;
+
+                case 'user_speech':
+                    addMessage('user1Conversation', 'sent', data.text, 
+                        `You (${data.language})`);
+                    break;
+
+                case 'audio':
+                    playAudioData(data.data, data.sample_rate);
+                    break;
+
+                case 'translation_audio_started':
+                    document.getElementById('user2Audio').classList.add('active');
+                    break;
+
+                case 'translation_audio_stopped':
+                    document.getElementById('user2Audio').classList.remove('active');
+                    break;
+
+                case 'partner_ready':
+                    updateStatus('user2Status', 'connected', 'Partner ready', 
+                        'Your translation partner is connected');
+                    document.getElementById('user2Indicator').classList.add('connected');
+                    break;
+
+                case 'partner_disconnected':
+                    updateStatus('user2Status', 'waiting', 'Partner disconnected', 
+                        'Waiting for new partner...');
+                    document.getElementById('user2Indicator').classList.remove('connected');
+                    addMessage('user2Conversation', 'system', 'Partner disconnected');
+                    break;
+            }
+        }
+
+        async function startTranslation() {
+            if (!currentUser || !currentUser.room_id) {
+                alert('Please join a room first');
+                return;
+            }
+
+            try {
+                document.getElementById('connectBtn').disabled = true;
+                document.getElementById('connectBtn').textContent = 'Connecting...';
+
+                // Create WebRTC connection
+                peerConnection = new RTCPeerConnection(configuration);
+                
+                // Get user media
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true,
+                        sampleRate: 16000
+                    } 
+                });
+
+                // Add tracks to peer connection
+                stream.getTracks().forEach(track => {
+                    peerConnection.addTrack(track, stream);
+                });
+
+                // Handle incoming audio
+                peerConnection.ontrack = function(event) {
+                    console.log('Received remote track');
+                    const remoteAudio = new Audio();
+                    remoteAudio.srcObject = event.streams[0];
+                    remoteAudio.play();
+                };
+
+                // Create offer
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+
+                // Send offer to server
+                const response = await fetch('/api/bidirectional-offer', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: currentUser.user_id,
+                        sdp: offer.sdp,
+                        type: offer.type
+                    })
+                });
+
+                const answer = await response.json();
+                
+                // Set remote description
+                await peerConnection.setRemoteDescription({
+                    type: 'answer',
+                    sdp: answer.sdp
+                });
+
+                updateStatus('user1Status', 'connected', 'Translation active!', 
+                    'Speak naturally - your voice will be translated in real-time');
+                
+                document.getElementById('user1Panel').classList.add('active');
+                document.getElementById('user1Audio').classList.add('active');
+
+            } catch (error) {
+                console.error('Error starting translation:', error);
+                updateStatus('user1Status', 'error', 'Connection failed', error.message);
+                document.getElementById('connectBtn').disabled = false;
+                document.getElementById('connectBtn').textContent = 'Connect';
+            }
+        }
+
+        async function leaveRoom() {
+            if (currentUser) {
+                try {
+                    await fetch(`/api/leave-room/${currentUser.user_id}`, {
+                        method: 'DELETE'
+                    });
+                } catch (error) {
+                    console.error('Error leaving room:', error);
+                }
+            }
+
+            // Clean up connections
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+
+            if (websocket) {
+                websocket.close();
+                websocket = null;
+            }
+
+            // Reset UI
+            currentUser = null;
+            document.getElementById('joinBtn').disabled = false;
+            document.getElementById('connectBtn').disabled = true;
+            document.getElementById('leaveBtn').disabled = true;
+            document.getElementById('joinBtn').textContent = 'Join Room';
+            document.getElementById('connectBtn').textContent = 'Connect';
+
+            document.getElementById('user1Panel').classList.remove('active');
+            document.getElementById('user1Audio').classList.remove('active');
+            document.getElementById('user2Audio').classList.remove('active');
+            
+            document.getElementById('user1Indicator').classList.remove('connected');
+            document.getElementById('user2Indicator').classList.remove('connected');
+
+            updateStatus('user1Status', '', 'Select your language and join', 'Choose your preferred language to start');
+            updateStatus('user2Status', 'waiting', 'No partner connected', 'Waiting for someone to join...');
+
+            document.getElementById('user1Id').textContent = 'Not connected';
+            document.getElementById('user2Id').textContent = 'Waiting for partner...';
+
+            // Clear conversations
+            clearConversation('user1Conversation');
+            clearConversation('user2Conversation');
+        }
+
+        function updateStatus(elementId, type, text, details) {
+            const element = document.getElementById(elementId);
+            element.className = `status-card ${type}`;
+            element.querySelector('.status-text').textContent = text;
+            element.querySelector('.status-details').textContent = details;
+        }
+
+        function updatePartnerInfo(partnerId, partnerLanguage) {
+            document.getElementById('user2Id').textContent = partnerId;
+            updateStatus('user2Status', 'connected', 'Partner connected', 
+                `Speaking ${partnerLanguage}`);
+        }
+
+        function addMessage(conversationId, type, text, sender = '') {
+            const conversation = document.getElementById(conversationId);
+            const message = document.createElement('div');
+            message.className = `message ${type}`;
+            
+            const timestamp = new Date().toLocaleTimeString();
+            message.innerHTML = `
+                <div class="message-header">${sender} • ${timestamp}</div>
+                <div class="message-text">${text}</div>
+            `;
+            
+            conversation.appendChild(message);
+            conversation.scrollTop = conversation.scrollHeight;
+        }
+
+        function clearConversation(conversationId) {
+            const conversation = document.getElementById(conversationId);
+            conversation.innerHTML = `
+                <div class="message">
+                    <div class="message-header">System</div>
+                    <div class="message-text">Conversation cleared.</div>
+                </div>
+            `;
+        }
+
+        function playAudioData(base64Data, sampleRate = 16000) {
+            try {
+                if (!remoteAudioContext) {
+                    remoteAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+
+                const binaryData = atob(base64Data);
+                const arrayBuffer = new ArrayBuffer(binaryData.length);
+                const uint8Array = new Uint8Array(arrayBuffer);
+                
+                for (let i = 0; i < binaryData.length; i++) {
+                    uint8Array[i] = binaryData.charCodeAt(i);
+                }
+
+                const audioBuffer = remoteAudioContext.createBuffer(1, uint8Array.length / 2, sampleRate);
+                const channelData = audioBuffer.getChannelData(0);
+                
+                const int16Array = new Int16Array(arrayBuffer);
+                for (let i = 0; i < int16Array.length; i++) {
+                    channelData[i] = int16Array[i] / 32768.0;
+                }
+
+                const source = remoteAudioContext.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(remoteAudioContext.destination);
+                source.start();
+
+            } catch (error) {
+                console.error('Error playing audio:', error);
+            }
+        }
+
+        async function updateStats() {
+            try {
+                const response = await fetch('/api/room-stats');
+                const stats = await response.json();
+                
+                document.getElementById('activeRooms').textContent = stats.active_rooms;
+                document.getElementById('totalUsers').textContent = stats.total_users;
+            } catch (error) {
+                console.error('Error updating stats:', error);
+            }
+        }
+
+        function updateTranslationCount() {
+            document.getElementById('translations').textContent = translationCount;
+        }
+
+        // Handle page unload
+        window.addEventListener('beforeunload', function() {
+            if (currentUser) {
+                leaveRoom();
+            }
+        });
+    </script>
+</body>
+</html>
