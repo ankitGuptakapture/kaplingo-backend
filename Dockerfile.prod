@@ -1,4 +1,4 @@
-# Use official Python image
+# Production Dockerfile with dynamic port support
 FROM python:3.11-slim
 
 # Set work directory
@@ -22,11 +22,17 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copy app code
 COPY . .
 
-# Expose port
+# Create non-root user for security
+RUN useradd --create-home --shell /bin/bash app && \
+    chown -R app:app /app
+USER app
+
+# Expose port (will be overridden by platform)
 EXPOSE 8000
 
-# Set environment variables (optional, for dotenv)
+# Set environment variables
 ENV PYTHONUNBUFFERED=1
+ENV PORT=8000
 
-# Run the FastAPI app with Uvicorn (remove --reload for production)
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run the FastAPI app with dynamic port support
+CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}
