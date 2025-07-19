@@ -11,6 +11,7 @@ class WebSocketManager:
         self.active_connections: Dict[str, WebSocket] = {}
 
     async def connect(self, client_id: str, websocket: WebSocket):
+        print(f"[WS] websocket Connected: {websocket}")
         await websocket.accept()
         self.active_connections[client_id] = websocket
         print(f"[WS] Connected: {client_id}")
