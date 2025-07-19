@@ -45,24 +45,53 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
     }
     await ws_manager.send_json(client_id, welcome_message)
     
-    # Send periodic test messages to verify data flow
+    # Send periodic test audio data to verify data flow
     async def send_test_messages():
         counter = 0
         while ws_manager.is_connected(client_id):
             try:
-                await asyncio.sleep(5)  # Send test message every 5 seconds
+                await asyncio.sleep(5)  # Send test audio every 5 seconds
                 if ws_manager.is_connected(client_id):
                     counter += 1
-                    test_message = {
-                        "type": "test_message",
-                        "message": f"Test message #{counter} from server",
+                    
+                    # Generate test audio data (simple sine wave tone)
+                    import numpy as np
+                    sample_rate = 16000
+                    duration = 1.0  # 1 second
+                    frequency = 440  # A4 note
+                    
+                    # Generate sine wave
+                    t = np.linspace(0, duration, int(sample_rate * duration), False)
+                    wave = np.sin(2 * np.pi * frequency * t)
+                    
+                    # Convert to 16-bit PCM
+                    audio_data = (wave * 32767).astype(np.int16).tobytes()
+                    
+                    # Send as audio JSON message
+                    await ws_manager.send_audio_json(
+                        client_id=client_id,
+                        audio_data=audio_data,
+                        sample_rate=sample_rate,
+                        format="pcm"
+                    )
+                    
+                    # Also send a status message
+                    status_message = {
+                        "type": "test_audio_sent",
+                        "message": f"Test audio #{counter} sent (440Hz tone, 1 sec)",
                         "timestamp": int(asyncio.get_event_loop().time() * 1000),
-                        "client_id": client_id
+                        "client_id": client_id,
+                        "audio_info": {
+                            "frequency": frequency,
+                            "duration": duration,
+                            "sample_rate": sample_rate,
+                            "size_bytes": len(audio_data)
+                        }
                     }
-                    await ws_manager.send_json(client_id, test_message)
-                    print(f"[WS] Sent test message #{counter} to {client_id}")
+                    await ws_manager.send_json(client_id, status_message)
+                    print(f"[WS] Sent test audio #{counter} to {client_id} ({len(audio_data)} bytes)")
             except Exception as e:
-                print(f"[WS] Error sending test message to {client_id}: {e}")
+                print(f"[WS] Error sending test audio to {client_id}: {e}")
                 break
     
     # Start test message task

@@ -355,6 +355,11 @@
                 addMessage("WebRTC client connected", "status-message");
               } else if (data.type === "webrtc_disconnected") {
                 addMessage("WebRTC client disconnected", "status-message");
+              } else if (data.type === "test_audio_sent") {
+                addMessage(
+                  `🎵 ${data.message} (${data.audio_info.size_bytes} bytes)`,
+                  "audio-message"
+                );
               } else {
                 addMessage(`Message: ${JSON.stringify(data)}`);
               }
